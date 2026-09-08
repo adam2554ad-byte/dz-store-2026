@@ -8,8 +8,9 @@ from telebot import types
 logging.basicConfig(level=logging.INFO)
 
 # التوكن والآيدي الخاص بك
-TOKEN = "8874439054:AAEM1I97sqGvWzQzH4BDAQsSdBGcQU4dOtw"
-ADMIN_CHAT_ID = "6846578647"
+TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSDbGCQu4c9cpu"
+ADMIN_CHAT_ID = "-5457819425"
+
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
