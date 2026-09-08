@@ -1,387 +1,141 @@
+import os
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
+from flask import Flask, request
+import telebot
+from telebot import types
 
 # إعداد التسجيل لمتابعة الأخطاء
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+logging.basicConfig(level=logging.INFO)
 
-# الآي دي الخاص بك لتلقي الإشعارات
+# التوكن والآيدي الخاص بك
+TOKEN = "8874439054:AAEM1I97sqGvWzQzH4BDAQsSdBGcQU4dOtw"
 ADMIN_CHAT_ID = "6846578647"
 
-# مراحل المحادثة
-CHOOSING_SERVICE, FREEFIRE_PACKAGES, GETTING_DETAILS, CONFIRMING = range(4)
+bot = telebot.TeleBot(TOKEN, threaded=False)
+app = Flask(__name__)
 
-# التوكن الخاص بـ DZ Star Store
-TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSdBGcQU4c9cpU"
+# تخزين مؤقت لحالة طلبات الزبائن
+pending_orders = {}
 
+@app.route('/' + TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  keyboard = [
-      [
-          InlineKeyboardButton(
-              "🔥 شحن ألعاب (Free Fire)", callback_data="service_freefire"
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "💵 عملات رقمية (USDT)", callback_data="service_usdt"
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "📱 خدمات فليكسي (Flexy)", callback_data="service_flexy"
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "💳 طرق الدفع ومعلومات الحسابات", callback_data="payment_methods"
-          )
-      ],
-      [
-          InlineKeyboardButton(
-              "ℹ️ معلومات عن المتجر", callback_data="about_store"
-          )
-      ],
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
+@app.route("/")
+def webhook():
+    bot.remove_webhook()
+    # ضع هنا رابط الـ Web Service الخاص بك في Render لاحقاً أو اتركه ليتعاطى أوتوماتيكياً
+    # bot.set_webhook(url='https://اسم-مشروعك.onrender.com/' + TOKEN)
+    return "DZ Star Store Bot is running!", 200
 
-  welcome_text = (
-      "🌟 **مرحباً بك في متجر DZ Star Store** 🌟\n\n"
-      "وجهتك الأولى والأوثق للخدمات الرقمية في الجزائر 🇩🇿.\n\n"
-      "📌 **ما توفره خدماتنا في المتجر:**\n"
-      "1️⃣ **شحن ألعاب (Free Fire):** شحن سريع وآمن عبر الـ Player ID.\n"
-      "2️⃣ **عملات رقمية (USDT):** بيع وشراء USDT بطرق موثوقة.\n"
-      "3️⃣ **خدمات فليكسي (Flexy):** تحويلات لجميع الشبكات.\n\n"
-      "👇 **اختر الخدمة أو اطلع على طرق الدفع من الأزرار أدناه:**"
-  )
-
-  if update.message:
-    await update.message.reply_text(
-        welcome_text, reply_markup=reply_markup, parse_mode="Markdown"
+# القائمة الرئيسية للمتجر المتطور
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("🔥 شحن فري فاير", callback_data="service_ff"),
+        types.InlineKeyboardButton("🇺🇸 حسابات گوگل أمريكية جاهزة", callback_data="service_google"),
+        types.InlineKeyboardButton("💳 تعبئة رصيد وبطاقات دفع", callback_data="service_cards"),
+        types.InlineKeyboardButton("📞 التواصل مع الدعم", callback_data="support")
     )
-  elif update.callback_query:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        welcome_text, reply_markup=reply_markup, parse_mode="Markdown"
-    )
-  return CHOOSING_SERVICE
-
-
-async def payment_methods(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-
-  keyboard = [
-      [InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="back_home")]
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  text = (
-      "💳 **معلومات وطرق الدفع في متجر DZ Star Store:**\n\n"
-      "يمكنك الدفع عبر الوسائل التالية المتوفرة لدينا:\n\n"
-      "1️⃣ **CCP (بريدي):**\n"
-      "• **رقم الحساب:** `00799999004305443758`\n"
-      "• **الاسم:** `Adem Mousli`\n\n"
-      "2️⃣ **Binance (باينانس):**\n"
-      "• **الرقم التعريفي:** `954361593`\n\n"
-      "3️⃣ **Flexy (فليكسي / هاتف):**\n"
-      "• **رقم الهاتف:** `0796152180`\n\n"
-      "⚠️ *ملاحظة:* بعد عملية الدفع، قم بإرسال وصل الاستلام مع تفاصيل طلبك للإدارة لتأكيده فوراً."
-  )
-  await query.edit_message_text(
-      text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-  return CHOOSING_SERVICE
-
-
-async def about_store(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-
-  keyboard = [
-      [InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="back_home")]
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  text = (
-      "ℹ️ **حول متجر DZ Star Store:**\n\n"
-      "نحن نسعى لتقديم أفضل الخدمات الرقمية بأسرع وقت وأفضل الأسعار.\n"
-      "لدينا نظام طلبات آلي ومباشر ليصل طلبك للإدارة في ثوانٍ معدودة وتنفيذه بدقة عالية.\n\n"
-      "خدمة العملاء في خدمتكم دائماً!"
-  )
-  await query.edit_message_text(
-      text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-  return CHOOSING_SERVICE
-
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-  choice = query.data
-
-  if choice == "payment_methods":
-    return await payment_methods(update, context)
-
-  if choice == "about_store":
-    return await about_store(update, context)
-
-  if choice == "back_home":
-    return await start(update, context)
-
-  # إذا اختار شحن فري فاير، نخرجلو قائمة العروض (الجواهر)
-  if choice == "service_freefire":
-    context.user_data["service_name"] = "شحن ألعاب (Free Fire) 🔥"
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "💎 100 جوهرة (أساسية)", callback_data="ff_100"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "💎 310 جوهرة (الأكثر طلباً)", callback_data="ff_310"
-            )
-        ],
-        [InlineKeyboardButton("💎 520 جوهرة", callback_data="ff_520")],
-        [
-            InlineKeyboardButton(
-                "💎 1060 جوهرة (عروض خاصة)", callback_data="ff_1060"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔙 العودة للقائمة الرئيسية", callback_data="back_home"
-            )
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        "🎮 **اختر عرض شحن Free Fire المطلوب:**",
-        reply_markup=reply_markup,
+    bot.send_message(
+        message.chat.id,
+        "مرحباً بك في *DZ Star Store* 🌟\nمتجرك المتطور للخدمات الرقمية وشحن الألعاب.\n\nاختر الخدمة المطلوبة من القائمة أسفله:",
         parse_mode="Markdown",
-    )
-    return FREEFIRE_PACKAGES
-
-  # باقي الخدمات (USDT و Flexy) يروحو دايركت يطلبوا التفاصيل
-  context.user_data["service_choice"] = choice
-
-  if choice == "service_usdt":
-    context.user_data["service_name"] = "عملات رقمية (USDT) 💵"
-    prompt_text = (
-        "💵 **خدمة: عملات رقمية (USDT)**\n\n"
-        "الرجاء إرسال التفاصيل التالية في رسالة واحدة:\n"
-        "• **المبلغ المراد (USDT):**\n"
-        "• **رقم محفظتك أو منصتك:**\n"
-        "• **طريقة الدفع (CCP / فليكسي):**\n\n"
-        "*(أكتب معلوماتك بوضوح وأرسلها الآن)*"
-    )
-  elif choice == "service_flexy":
-    context.user_data["service_name"] = "خدمات فليكسي (Flexy) 📱"
-    prompt_text = (
-        "📱 **خدمة: خدمات فليكسي (Flexy)**\n\n"
-        "الرجاء إرسال التفاصيل التالية في رسالة واحدة:\n"
-        "• **رقم الهاتف المراد التحويل إليه:**\n"
-        "• **نوع الشبكة (موبيليس / جيزي / أوريدو) والمبلغ:**\n"
-        "• **طريقة الدفع (CCP / بريدي):**\n\n"
-        "*(أكتب معلوماتك بوضوح وأرسلها الآن)*"
+        reply_markup=markup
     )
 
-  keyboard = [
-      [InlineKeyboardButton("❌ إلغاء والعودة", callback_data="back_home")]
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
+# استقبال اختيار الخدمات
+@bot.callback_query_handler(func=lambda call: call.data.startswith('service_'))
+def handle_services(call):
+    chat_id = call.message.chat.id
+    if call.data == "service_ff":
+        msg = bot.send_message(chat_id, "أرسل لي الآيدي (ID) الخاص بك في لعبة فري فاير مع تفاصيل العرض المطلوب:")
+        bot.register_next_step_handler(msg, process_order_request)
+    elif call.data == "service_google":
+        msg = bot.send_message(chat_id, "أرسل لي البريد الإلكتروني أو التفاصيل الخاصة بطلب حساب گوگل الأمريكي المطلوب:")
+        bot.register_next_step_handler(msg, process_order_request)
+    elif call.data == "service_cards":
+        msg = bot.send_message(chat_id, "حدد نوع البطاقة أو الخدمة المالية المطلوبة وقيمتها:")
+        bot.register_next_step_handler(msg, process_order_request)
 
-  await query.edit_message_text(
-      prompt_text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-  return GETTING_DETAILS
+# معالجة الطلب وإرساله للإدارة قبل الدفع
+def process_order_request(message):
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name or "مستخدم"
+    user_username = f"@{message.from_user.username}" > "@" else "بدون معرف"
+    order_text = message.text
 
+    # حفظ تفاصيل الطلب مؤقتاً
+    pending_orders[user_id] = order_text
 
-async def freefire_package_handler(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
-  query = update.callback_query
-  await query.answer()
-  choice = query.data
-
-  if choice == "back_home":
-    return await start(update, context)
-
-  # تحديد الباقة لي اخترها الزبون
-  packages_dict = {
-      "ff_100": "100 جوهرة 💎",
-      "ff_310": "310 جوهرة 💎",
-      "ff_520": "520 جوهرة 💎",
-      "ff_1060": "1060 جوهرة 💎",
-  }
-
-  selected_pkg = packages_dict.get(choice, "عرض فري فاير")
-  context.user_data["selected_package"] = selected_pkg
-
-  prompt_text = (
-      f"🎮 **لقد اخترت: {selected_pkg}**\n\n"
-      "الآن، الرجاء إرسال **Player ID (معرف اللاعب الخاص بك)** في رسالة واحدة:\n"
-      "• **Player ID:**\n"
-      "• **طريقة الدفع المختارة (CCP / باينانس / فليكسي):**\n\n"
-      "*(أكتب معلوماتك بوضوح وأرسلها الآن)*"
-  )
-
-  keyboard = [
-      [InlineKeyboardButton("❌ إلغاء والعودة", callback_data="back_home")]
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  await query.edit_message_text(
-      prompt_text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-  return GETTING_DETAILS
-
-
-async def receive_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  user_input = update.message.text
-  context.user_data["user_details"] = user_input
-
-  service_name = context.user_data.get("service_name")
-  pkg = context.user_data.get("selected_package", "")
-  full_service_name = (
-      f"{service_name} ({pkg})" if pkg else service_name
-  )
-
-  summary_text = (
-      f"📋 **ملخص طلبك (يرجى المراجعة قبل التأكيد):**\n\n"
-      f"▫️ **الخدمة المختارة:** {full_service_name}\n"
-      f"▫️ **التفاصيل والمعلومات المدخلة:**\n`{user_input}`\n\n"
-      "هل أنت متأكد من صحة المعلومات وترغب في إرسال الطلب نهائياً للإدارة؟"
-  )
-
-  keyboard = [
-      [
-          InlineKeyboardButton("✅ تأكيد وإرسال الطلب", callback_data="confirm_yes"),
-          InlineKeyboardButton("🔄 تعديل / إلغاء", callback_data="back_home"),
-      ]
-  ]
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  await update.message.reply_text(
-      summary_text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-  return CONFIRMING
-
-
-async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-
-  if query.data == "back_home":
-    return await start(update, context)
-
-  service_name = context.user_data.get("service_name")
-  pkg = context.user_data.get("selected_package", "")
-  full_service_name = (
-      f"{service_name} ({pkg})" if pkg else service_name
-  )
-  user_details = context.user_data.get("user_details")
-  user = update.effective_user
-
-  admin_message = (
-      f"🚨 **تنبيه: طلب جديد مؤكد في المتجر!** 🚨\n\n"
-      f"🛍 **الخدمة:** {full_service_name}\n"
-      f"👤 **معلومات الزبون:**\n"
-      f"• الاسم: {user.first_name}\n"
-      f"• اليوزر: @{user.username or 'لا يوجد'}\n"
-      f"• الايدي: `{user.id}`\n\n"
-      f"📝 **تفاصيل الطلب والدفع المدخلة:**\n`{user_details}`"
-  )
-
-  try:
-    await context.bot.send_message(
-        chat_id=ADMIN_CHAT_ID, text=admin_message, parse_mode="Markdown"
+    # إشعار الزبون بأن طلبه قيد المعالجة
+    bot.send_message(
+        message.chat.id,
+        "⏳ تم استلام طلبك بنجاح وهو الآن قيد المراجعة والتحقق من التوفر لدى الإدارة. انتظر قليلاً من فضلك."
     )
-  except Exception as e:
-    print(f"خطأ في إرسال الإشعار للإدارة: {e}")
 
-  success_text = (
-      "✅ **تم إرسال طلبك بنجاح تام إلى الإدارة!**\n\n"
-      "شكراً لثقتك في **DZ Star Store** 🌟\n"
-      "يرجى إرسال إثبات الدفع (إن وجد) أو الانتظار ليتم التواصل معك قريباً.\n\n"
-      "لإجراء طلب جديد، اضغط على /start"
-  )
+    # إرسال إشعار للأدمن مع أزرار القبول أو الرفض
+    admin_markup = types.InlineKeyboardMarkup(row_width=2)
+    admin_markup.add(
+        types.InlineKeyboardButton("✅ قبول الطلب", callback_data=f"accept_{user_id}"),
+        types.InlineKeyboardButton("❌ رفض الطلب", callback_data=f"reject_{user_id}")
+    )
 
-  await query.edit_message_text(success_text, parse_mode="Markdown")
-  return ConversationHandler.END
+    admin_msg = (
+        f"🚨 *طلب جديد قيد الدراسة!*\n\n"
+        f"👤 *الزبون:* {user_name} ({user_username})\n"
+        f"🆔 *معرف المستخدم:* `{user_id}`\n\n"
+        f"📦 *تفاصيل الطلب:* \n{order_text}"
+    )
+    
+    bot.send_message(ADMIN_CHAT_ID, admin_msg, parse_mode="Markdown", reply_markup=admin_markup)
 
+# التعامل مع قرارات الأدمن (قبول أو رفض)
+@bot.callback_query_handler(func=lambda call: call.data.startswith('accept_') or call.data.startswith('reject_'))
+def handle_admin_decision(call):
+    data_parts = call.data.split('_')
+    action = data_parts[0]
+    user_id = int(data_parts[1])
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  if update.message:
-    await update.message.reply_text("تم إلغاء العملية. أرسل /start للبدء من جديد.")
-  return ConversationHandler.END
+    if action == "accept":
+        # إعلام الأدمن
+        bot.answer_callback_query(call.id, "تم قبول الطلب بنجاح!")
+        bot.edit_message_text(
+            f"{call.message.text}\n\n🟢 *الحالة:* تم قبول الطلب من طرف الإدارة.",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            parse_mode="Markdown"
+        )
+        # إعلام الزبون وتوجيهه لمرحلة الدفع
+        pay_markup = types.InlineKeyboardMarkup()
+        pay_markup.add(types.InlineKeyboardButton("📤 إرسال وصل الدفع", callback_data="send_receipt"))
+        bot.send_message(
+            user_id,
+            "🎉 *مبروك! لقد تم قبول طلبك وتأكيد توفره.*\n\nيرجى إتمام عملية الدفع وإرسال صورة الوصل لتسليمك الخدمة في أسرع وقت.",
+            parse_mode="Markdown",
+            reply_markup=pay_markup
+        )
 
-
-def main():
-  app = ApplicationBuilder().token(TOKEN).build()
-
-  conv_handler = ConversationHandler(
-      entry_points=[
-          CommandHandler("start", start),
-          CallbackQueryHandler(start, pattern="^back_home$"),
-      ],
-      states={
-          CHOOSING_SERVICE: [
-              CallbackQueryHandler(
-                  button_handler,
-                  pattern="^(service_|payment_methods|about_store|back_home)",
-              )
-          ],
-          FREEFIRE_PACKAGES: [
-              CallbackQueryHandler(
-                  package_handler_router,
-                  pattern="^(ff_|back_home)",
-              )
-          ],
-          GETTING_DETAILS: [
-              MessageHandler(
-                  filters.TEXT & ~filters.COMMAND, receive_details
-              ),
-              CallbackQueryHandler(button_handler, pattern="^back_home$"),
-          ],
-          CONFIRMING: [
-              CallbackQueryHandler(
-                  confirm_order, pattern="^(confirm_yes|back_home)$"
-              )
-          ],
-      },
-      fallbacks=[CommandHandler("cancel", cancel)],
-  )
-
-  app.add_handler(conv_handler)
-
-  print("🤖 بوت DZ Star Store يعمل الآن باحترافية تامة...")
-  app.run_polling()
-
-
-# دالة وسيطة لتوجيه اختيار الباقات
-async def package_handler_router(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
-  query = update.callback_query
-  if query.data == "back_home":
-    return await start(update, context)
-  else:
-    return await freefire_package_handler(update, context)
-
+    elif action == "reject":
+        # إعلام الأدمن
+        bot.answer_callback_query(call.id, "تم رفض الطلب.")
+        bot.edit_message_text(
+            f"{call.message.text}\n\n🔴 *الحالة:* تم رفض الطلب أو الخدمة غير متوفرة حالياً.",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            parse_mode="Markdown"
+        )
+        # إعلام الزبون بالرفض
+        bot.send_message(
+            user_id,
+            "⚠️ نأسف، طلبك غير متوفر حالياً أو تم رفضه من قبل الإدارة. يمكنك المحاولة لاحقاً أو اختيار خدمة أخرى عبر /start"
+        )
 
 if __name__ == "__main__":
-  main()
+    app.host = "0.0.0.0"
+    app.port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=app.port)
