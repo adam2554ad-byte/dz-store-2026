@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSdBGcQU4c9cpU"
 
 # اسم المستخدم الخاص بالإدارة لتلقي الطلبات (يمكنك تعديله لاحقاً)
-ADMIN_USERNAME = "@YourUsername"
+ADMIN_USERNAME = "@Adam_Store7"
 
 bot = telebot.TeleBot(TOKEN)
 
