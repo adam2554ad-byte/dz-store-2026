@@ -64,8 +64,12 @@ def handle_services(call):
 
 # معالجة الطلب وإرساله للإدارة قبل الدفع
 def process_order_request(message):
-username = message.from_user.username
-user_username = f"@{username}" if username else "بدون معرف"    
+
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name
+    username = message.from_user.username
+    user_username = f"@{username}" if username else "بدون معرف"
+    order_text = message.text    
      
 
 
