@@ -8,7 +8,7 @@ from telebot import types
 logging.basicConfig(level=logging.INFO)
 
 # جلب التوكن والأيدي مباشرة وبأمان
-TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSDbGCQu4c9cpu"
+TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSdBGcQU4c9cpU"
 ADMIN_CHAT_ID = "-5457819425"
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
