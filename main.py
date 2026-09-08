@@ -9,10 +9,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# توكن البوت (استبدله بتوكن بوتك الجديد من BotFather)
+# توكن البوت
 TOKEN = "8874439054:AAEM1I97sqGvWQzH4BDAQsSdBGcQU4c9cpU"
 
-# اسم المستخدم الخاص بالإدارة لتلقي الطلبات (يمكنك تعديله لاحقاً)
+# اسم المستخدم الخاص بالإدارة لتلقي الطلبات
 ADMIN_USERNAME = "@Adam_Store7"
 
 bot = telebot.TeleBot(TOKEN)
